@@ -1,0 +1,19 @@
+Package: BGCLM
+Type: Package
+Title: Bayesian Graphical Continuous Lyapunov Models
+Version: 1.0
+Date: 2026-09-22
+Authors@R: person("Your", "Name", role = c("aut", "cre"), email =
+         "your@email.com")
+Description: MCMC for graphical continuous Lyapunov models with a
+    spike-and-slab prior on the drift matrix. Observations are treated as
+    equilibrium snapshots of a multivariate Ornstein-Uhlenbeck process, so
+    the covariance solves a continuous Lyapunov equation. Stability of the
+    drift is imposed through a Gershgorin diagonal. The sampler is written
+    in C++ via RcppArmadillo.
+License: GPL (>= 2)
+Suggests: tinytest
+Encoding: UTF-8
+RoxygenNote: 7.3.3
+Imports: Rcpp (>= 1.1.1), stats
+LinkingTo: Rcpp, RcppArmadillo

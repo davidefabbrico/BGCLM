@@ -1,0 +1,9 @@
+useDynLib(BGCLM, .registration=TRUE)
+importFrom(Rcpp, evalCpp)
+importFrom(stats, sd, acf, quantile, median, rnorm, runif)
+
+S3method(print, gclm)
+
+## export all regularly named functions
+## (but allow for private functions whose name starts with a dot).name <- function(...)
+exportPattern("^[[:alpha:]]+")
