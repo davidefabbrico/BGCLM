@@ -24,8 +24,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // gclm_mcmc_cpp
-Rcpp::List gclm_mcmc_cpp(const arma::mat& Y, const int n_iter, const int burnin, const int thin, const double a_pi, const double b_pi, const double a_tau, const double b_tau, const double a_shape, const double a_rate, const arma::mat& C, const bool verbose);
-RcppExport SEXP _BGCLM_gclm_mcmc_cpp(SEXP YSEXP, SEXP n_iterSEXP, SEXP burninSEXP, SEXP thinSEXP, SEXP a_piSEXP, SEXP b_piSEXP, SEXP a_tauSEXP, SEXP b_tauSEXP, SEXP a_shapeSEXP, SEXP a_rateSEXP, SEXP CSEXP, SEXP verboseSEXP) {
+Rcpp::List gclm_mcmc_cpp(const arma::mat& Y, const int n_iter, const int burnin, const int thin, const double a_pi, const double b_pi, const double a_tau, const double b_tau, const double a_shape, const double a_rate, const arma::mat& C, const bool verbose, const bool prior_only);
+RcppExport SEXP _BGCLM_gclm_mcmc_cpp(SEXP YSEXP, SEXP n_iterSEXP, SEXP burninSEXP, SEXP thinSEXP, SEXP a_piSEXP, SEXP b_piSEXP, SEXP a_tauSEXP, SEXP b_tauSEXP, SEXP a_shapeSEXP, SEXP a_rateSEXP, SEXP CSEXP, SEXP verboseSEXP, SEXP prior_onlySEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -41,61 +41,71 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const double >::type a_rate(a_rateSEXP);
     Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
     Rcpp::traits::input_parameter< const bool >::type verbose(verboseSEXP);
-    rcpp_result_gen = Rcpp::wrap(gclm_mcmc_cpp(Y, n_iter, burnin, thin, a_pi, b_pi, a_tau, b_tau, a_shape, a_rate, C, verbose));
+    Rcpp::traits::input_parameter< const bool >::type prior_only(prior_onlySEXP);
+    rcpp_result_gen = Rcpp::wrap(gclm_mcmc_cpp(Y, n_iter, burnin, thin, a_pi, b_pi, a_tau, b_tau, a_shape, a_rate, C, verbose, prior_only));
     return rcpp_result_gen;
 END_RCPP
 }
-// rcpparma_hello_world
-arma::mat rcpparma_hello_world();
-RcppExport SEXP _BGCLM_rcpparma_hello_world() {
+// gclm_simple_pt_cpp
+Rcpp::List gclm_simple_pt_cpp(const arma::mat& Y, const int n_iter, const int burnin, const int thin, const double a_rho, const double b_rho, const double a_tau, const double b_tau, const double a_shape, const double a_rate, const arma::mat& C, const bool verbose, const bool prior_only, const double eps_bridge, const arma::mat& Boff0, const arma::vec& a0, const arma::vec& betas, const bool free_model);
+RcppExport SEXP _BGCLM_gclm_simple_pt_cpp(SEXP YSEXP, SEXP n_iterSEXP, SEXP burninSEXP, SEXP thinSEXP, SEXP a_rhoSEXP, SEXP b_rhoSEXP, SEXP a_tauSEXP, SEXP b_tauSEXP, SEXP a_shapeSEXP, SEXP a_rateSEXP, SEXP CSEXP, SEXP verboseSEXP, SEXP prior_onlySEXP, SEXP eps_bridgeSEXP, SEXP Boff0SEXP, SEXP a0SEXP, SEXP betasSEXP, SEXP free_modelSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    rcpp_result_gen = Rcpp::wrap(rcpparma_hello_world());
+    Rcpp::traits::input_parameter< const arma::mat& >::type Y(YSEXP);
+    Rcpp::traits::input_parameter< const int >::type n_iter(n_iterSEXP);
+    Rcpp::traits::input_parameter< const int >::type burnin(burninSEXP);
+    Rcpp::traits::input_parameter< const int >::type thin(thinSEXP);
+    Rcpp::traits::input_parameter< const double >::type a_rho(a_rhoSEXP);
+    Rcpp::traits::input_parameter< const double >::type b_rho(b_rhoSEXP);
+    Rcpp::traits::input_parameter< const double >::type a_tau(a_tauSEXP);
+    Rcpp::traits::input_parameter< const double >::type b_tau(b_tauSEXP);
+    Rcpp::traits::input_parameter< const double >::type a_shape(a_shapeSEXP);
+    Rcpp::traits::input_parameter< const double >::type a_rate(a_rateSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
+    Rcpp::traits::input_parameter< const bool >::type verbose(verboseSEXP);
+    Rcpp::traits::input_parameter< const bool >::type prior_only(prior_onlySEXP);
+    Rcpp::traits::input_parameter< const double >::type eps_bridge(eps_bridgeSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Boff0(Boff0SEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type a0(a0SEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type betas(betasSEXP);
+    Rcpp::traits::input_parameter< const bool >::type free_model(free_modelSEXP);
+    rcpp_result_gen = Rcpp::wrap(gclm_simple_pt_cpp(Y, n_iter, burnin, thin, a_rho, b_rho, a_tau, b_tau, a_shape, a_rate, C, verbose, prior_only, eps_bridge, Boff0, a0, betas, free_model));
     return rcpp_result_gen;
 END_RCPP
 }
-// rcpparma_outerproduct
-arma::mat rcpparma_outerproduct(const arma::colvec& x);
-RcppExport SEXP _BGCLM_rcpparma_outerproduct(SEXP xSEXP) {
+// gclm_simple_cpp
+Rcpp::List gclm_simple_cpp(const arma::mat& Y, const int n_iter, const int burnin, const int thin, const double a_rho, const double b_rho, const double a_tau, const double b_tau, const double a_shape, const double a_rate, const arma::mat& C, const bool verbose, const bool prior_only, const double eps_bridge, const arma::mat& Boff0, const arma::vec& a0);
+RcppExport SEXP _BGCLM_gclm_simple_cpp(SEXP YSEXP, SEXP n_iterSEXP, SEXP burninSEXP, SEXP thinSEXP, SEXP a_rhoSEXP, SEXP b_rhoSEXP, SEXP a_tauSEXP, SEXP b_tauSEXP, SEXP a_shapeSEXP, SEXP a_rateSEXP, SEXP CSEXP, SEXP verboseSEXP, SEXP prior_onlySEXP, SEXP eps_bridgeSEXP, SEXP Boff0SEXP, SEXP a0SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::colvec& >::type x(xSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpparma_outerproduct(x));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rcpparma_innerproduct
-double rcpparma_innerproduct(const arma::colvec& x);
-RcppExport SEXP _BGCLM_rcpparma_innerproduct(SEXP xSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::colvec& >::type x(xSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpparma_innerproduct(x));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rcpparma_bothproducts
-Rcpp::List rcpparma_bothproducts(const arma::colvec& x);
-RcppExport SEXP _BGCLM_rcpparma_bothproducts(SEXP xSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const arma::colvec& >::type x(xSEXP);
-    rcpp_result_gen = Rcpp::wrap(rcpparma_bothproducts(x));
+    Rcpp::traits::input_parameter< const arma::mat& >::type Y(YSEXP);
+    Rcpp::traits::input_parameter< const int >::type n_iter(n_iterSEXP);
+    Rcpp::traits::input_parameter< const int >::type burnin(burninSEXP);
+    Rcpp::traits::input_parameter< const int >::type thin(thinSEXP);
+    Rcpp::traits::input_parameter< const double >::type a_rho(a_rhoSEXP);
+    Rcpp::traits::input_parameter< const double >::type b_rho(b_rhoSEXP);
+    Rcpp::traits::input_parameter< const double >::type a_tau(a_tauSEXP);
+    Rcpp::traits::input_parameter< const double >::type b_tau(b_tauSEXP);
+    Rcpp::traits::input_parameter< const double >::type a_shape(a_shapeSEXP);
+    Rcpp::traits::input_parameter< const double >::type a_rate(a_rateSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type C(CSEXP);
+    Rcpp::traits::input_parameter< const bool >::type verbose(verboseSEXP);
+    Rcpp::traits::input_parameter< const bool >::type prior_only(prior_onlySEXP);
+    Rcpp::traits::input_parameter< const double >::type eps_bridge(eps_bridgeSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Boff0(Boff0SEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type a0(a0SEXP);
+    rcpp_result_gen = Rcpp::wrap(gclm_simple_cpp(Y, n_iter, burnin, thin, a_rho, b_rho, a_tau, b_tau, a_shape, a_rate, C, verbose, prior_only, eps_bridge, Boff0, a0));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
     {"_BGCLM_lyapunov_cpp", (DL_FUNC) &_BGCLM_lyapunov_cpp, 2},
-    {"_BGCLM_gclm_mcmc_cpp", (DL_FUNC) &_BGCLM_gclm_mcmc_cpp, 12},
-    {"_BGCLM_rcpparma_hello_world", (DL_FUNC) &_BGCLM_rcpparma_hello_world, 0},
-    {"_BGCLM_rcpparma_outerproduct", (DL_FUNC) &_BGCLM_rcpparma_outerproduct, 1},
-    {"_BGCLM_rcpparma_innerproduct", (DL_FUNC) &_BGCLM_rcpparma_innerproduct, 1},
-    {"_BGCLM_rcpparma_bothproducts", (DL_FUNC) &_BGCLM_rcpparma_bothproducts, 1},
+    {"_BGCLM_gclm_mcmc_cpp", (DL_FUNC) &_BGCLM_gclm_mcmc_cpp, 13},
+    {"_BGCLM_gclm_simple_pt_cpp", (DL_FUNC) &_BGCLM_gclm_simple_pt_cpp, 18},
+    {"_BGCLM_gclm_simple_cpp", (DL_FUNC) &_BGCLM_gclm_simple_cpp, 16},
     {NULL, NULL, 0}
 };
 

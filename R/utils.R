@@ -82,13 +82,13 @@ auc <- function(score, label) {
 #'
 #' @param fit output di gclm_mcmc
 #' @param truth output di make_true_model
-#' @param thr soglia sui PIP per dichiarare un arco presente
+#' @param thr soglia della regola di selezione, vedi [select_graph()]
 eval_fit <- function(fit, truth, thr = 0.5) {
   p   <- ncol(truth$B)
   off <- which(diag(p) == 0)
   lab <- truth$delta[off]
   pip <- fit$PIP[off]
-  sel <- as.integer(pip > thr)
+  sel <- select_graph(fit, thr = thr)[off]
   qs  <- apply(fit$B, c(1, 2), stats::quantile, probs = c(0.025, 0.975))
   data.frame(
     auc     = auc(pip, lab),

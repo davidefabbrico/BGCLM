@@ -5,23 +5,15 @@ lyapunov_cpp <- function(B, C) {
     .Call(`_BGCLM_lyapunov_cpp`, B, C)
 }
 
-gclm_mcmc_cpp <- function(Y, n_iter, burnin, thin, a_pi, b_pi, a_tau, b_tau, a_shape, a_rate, C, verbose) {
-    .Call(`_BGCLM_gclm_mcmc_cpp`, Y, n_iter, burnin, thin, a_pi, b_pi, a_tau, b_tau, a_shape, a_rate, C, verbose)
+gclm_mcmc_cpp <- function(Y, n_iter, burnin, thin, a_pi, b_pi, a_tau, b_tau, a_shape, a_rate, C, verbose, prior_only = FALSE) {
+    .Call(`_BGCLM_gclm_mcmc_cpp`, Y, n_iter, burnin, thin, a_pi, b_pi, a_tau, b_tau, a_shape, a_rate, C, verbose, prior_only)
 }
 
-rcpparma_hello_world <- function() {
-    .Call(`_BGCLM_rcpparma_hello_world`)
+gclm_simple_pt_cpp <- function(Y, n_iter, burnin, thin, a_rho, b_rho, a_tau, b_tau, a_shape, a_rate, C, verbose, prior_only, eps_bridge, Boff0, a0, betas, free_model) {
+    .Call(`_BGCLM_gclm_simple_pt_cpp`, Y, n_iter, burnin, thin, a_rho, b_rho, a_tau, b_tau, a_shape, a_rate, C, verbose, prior_only, eps_bridge, Boff0, a0, betas, free_model)
 }
 
-rcpparma_outerproduct <- function(x) {
-    .Call(`_BGCLM_rcpparma_outerproduct`, x)
-}
-
-rcpparma_innerproduct <- function(x) {
-    .Call(`_BGCLM_rcpparma_innerproduct`, x)
-}
-
-rcpparma_bothproducts <- function(x) {
-    .Call(`_BGCLM_rcpparma_bothproducts`, x)
+gclm_simple_cpp <- function(Y, n_iter, burnin, thin, a_rho, b_rho, a_tau, b_tau, a_shape, a_rate, C, verbose, prior_only, eps_bridge, Boff0, a0) {
+    .Call(`_BGCLM_gclm_simple_cpp`, Y, n_iter, burnin, thin, a_rho, b_rho, a_tau, b_tau, a_shape, a_rate, C, verbose, prior_only, eps_bridge, Boff0, a0)
 }
 

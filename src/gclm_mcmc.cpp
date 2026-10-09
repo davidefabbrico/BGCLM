@@ -15,6 +15,14 @@
 // Sigma e viene quasi sempre rifiutata. In (B_off, d) le mosse sugli archi sono
 // locali, B_ii resta fermo, e la catena mescola.
 //
+// Oltre a nascita/morte e random walk c'e' una mossa che inverte un arco
+// (j -> i diventa i -> j) in un solo passo. Senza di essa l'unico modo di
+// cambiare orientamento e' passare per il 2-ciclo i <-> j, che a n grande e'
+// raro: la catena resterebbe sull'orientamento scelto all'inizio.
+//
+// prior_only = true rende piatta la verosimiglianza: la catena deve allora
+// restituire la prior, ed e' il test di correttezza dei rapporti MH.
+//
 // L'RNG e' quello di R: set.seed() dal lato R rende la catena riproducibile.
 // ============================================================
 
@@ -60,12 +68,16 @@ Rcpp::List gclm_mcmc_cpp(const arma::mat& Y,
                          const double a_pi, const double b_pi,
                          const double a_tau, const double b_tau,
                          const double a_shape, const double a_rate,
-                         const arma::mat& C, const bool verbose) {
+                         const arma::mat& C, const bool verbose,
+                         const bool prior_only = false) {
 
   const uword n = Y.n_rows, p = Y.n_cols;
   const double nd = (double) n, pd = (double) p;
   const mat Shat = Y.t() * Y / nd;
   const double a_scale = 1.0 / a_rate;                 // R::dgamma/rgamma usano la scala
+  auto loglik = [&](const mat& S) -> double {
+    return prior_only ? 0.0 : gauss_loglik(S, Shat, nd, pd);
+  };
 
   // archi (i, j) con i != j
   std::vector<uword> ei, ej;
@@ -88,11 +100,11 @@ Rcpp::List gclm_mcmc_cpp(const arma::mat& Y,
   mat Sigcur;
   if (!lyap_solve(Bcur, C, Sigcur))
     Rcpp::stop("Lyapunov non risolvibile nello stato iniziale");
-  double llcur = gauss_loglik(Sigcur, Shat, nd, pd);
+  double llcur = loglik(Sigcur);
 
   mat s_rw(p, p, fill::value(0.2)), acc_rw(p, p, fill::zeros), n_rw(p, p, fill::zeros);
   vec s_a(p, fill::value(0.3)),     acc_a(p, fill::zeros),     n_a(p, fill::zeros);
-  double acc_flip = 0.0, n_flip = 0.0;
+  double acc_flip = 0.0, n_flip = 0.0, acc_rev = 0.0, n_rev = 0.0;
 
   const int n_save = (n_iter - burnin) / thin;
   cube Bsave(p, p, n_save), Dsave(p, p, n_save);
@@ -115,6 +127,38 @@ Rcpp::List gclm_mcmc_cpp(const arma::mat& Y,
     for (uword t = 0; t < K; ++t) {
       const uword i = ei[ord[t]], j = ej[ord[t]];
 
+      // ---- (0) inversione di un arco della coppia {i, j} --------------
+      // La stessa mossa propone entrambe le direzioni, cosi' il kernel e'
+      // reversibile da solo: se fosse attaccata solo alla coppia ordinata (i, j)
+      // la catena non conserverebbe la posteriori. Due varianti: scambio con la
+      // stessa ampiezza (involuzione, jacobiano 1) e scambio con ampiezza nuova
+      // dallo slab (slab e proposta si cancellano). Le diagonali restano ferme e
+      // i margini delle due righe assorbono la variazione.
+      for (int mv = 0; mv < 2; ++mv) {
+        uword ro, co;
+        if (delta(i, j) == 1 && delta(j, i) == 0) { ro = i; co = j; }
+        else if (delta(j, i) == 1 && delta(i, j) == 0) { ro = j; co = i; }
+        else break;
+        const double b_old = Boff(ro, co);
+        const double b_new = (mv == 0) ? b_old : R::rnorm(0.0, std::sqrt(tau));
+        const double a_ro = avec(ro) + std::fabs(b_old);
+        const double a_co = avec(co) - std::fabs(b_new);
+        n_rev += 1.0;
+        if (a_co <= 0.0) continue;
+        Boff(ro, co) = 0.0; Bcur(ro, co) = 0.0; Boff(co, ro) = b_new; Bcur(co, ro) = b_new;
+        const double ll2 = lyap_solve(Bcur, C, Stry) ? loglik(Stry) : -datum::inf;
+        const double lr2 = R::dgamma(a_ro, a_shape, a_scale, 1) - R::dgamma(avec(ro), a_shape, a_scale, 1)
+                         + R::dgamma(a_co, a_shape, a_scale, 1) - R::dgamma(avec(co), a_shape, a_scale, 1);
+        if (std::log(R::unif_rand()) < ll2 - llcur + lr2) {
+          delta(ro, co) = 0; delta(co, ro) = 1;
+          rsum(ro) -= std::fabs(b_old); avec(ro) = a_ro;
+          rsum(co) += std::fabs(b_new); avec(co) = a_co;
+          Sigcur = Stry; llcur = ll2; acc_rev += 1.0;
+        } else {
+          Boff(ro, co) = b_old; Bcur(ro, co) = b_old; Boff(co, ro) = 0.0; Bcur(co, ro) = 0.0;
+        }
+      }
+
       // ---- (a) birth / death ----------------------------------------
       // Proponendo dallo slab N(0, tau) i termini di slab e di proposta si
       // cancellano: resta lik x pi/(1-pi) x rapporto del prior su a_i.
@@ -133,7 +177,7 @@ Rcpp::List gclm_mcmc_cpp(const arma::mat& Y,
         const double bold = Boff(i, j);
         Boff(i, j) = bnew; Bcur(i, j) = bnew;
         double lltry = lyap_solve(Bcur, C, Stry)
-                       ? gauss_loglik(Stry, Shat, nd, pd) : -datum::inf;
+                       ? loglik(Stry) : -datum::inf;
         logr += R::dgamma(anew, a_shape, a_scale, 1)
               - R::dgamma(avec(i), a_shape, a_scale, 1);
         if (std::log(R::unif_rand()) < lltry - llcur + logr) {
@@ -155,7 +199,7 @@ Rcpp::List gclm_mcmc_cpp(const arma::mat& Y,
         if (anew > 0.0) {
           Boff(i, j) = bnew; Bcur(i, j) = bnew;
           double lltry = lyap_solve(Bcur, C, Stry)
-                         ? gauss_loglik(Stry, Shat, nd, pd) : -datum::inf;
+                         ? loglik(Stry) : -datum::inf;
           logr = R::dnorm4(bnew, 0.0, std::sqrt(tau), 1)
                - R::dnorm4(bold, 0.0, std::sqrt(tau), 1)
                + R::dgamma(anew, a_shape, a_scale, 1)
@@ -176,7 +220,7 @@ Rcpp::List gclm_mcmc_cpp(const arma::mat& Y,
       const double anew = aold * std::exp(R::rnorm(0.0, s_a(i)));
       Bcur(i, i) = -(rsum(i) + anew);
       double lltry = lyap_solve(Bcur, C, Stry)
-                     ? gauss_loglik(Stry, Shat, nd, pd) : -datum::inf;
+                     ? loglik(Stry) : -datum::inf;
       const double logr = R::dgamma(anew, a_shape, a_scale, 1)
                         - R::dgamma(aold, a_shape, a_scale, 1)
                         + std::log(anew) - std::log(aold);
@@ -211,7 +255,7 @@ Rcpp::List gclm_mcmc_cpp(const arma::mat& Y,
     }
     if (it == burnin) {
       acc_rw.zeros(); n_rw.zeros(); acc_a.zeros(); n_a.zeros();
-      acc_flip = 0.0; n_flip = 0.0;
+      acc_flip = 0.0; n_flip = 0.0; acc_rev = 0.0; n_rev = 0.0;
     }
 
     if (it > burnin && (it - burnin) % thin == 0) {
@@ -245,6 +289,7 @@ Rcpp::List gclm_mcmc_cpp(const arma::mat& Y,
     Rcpp::_["B_incl"]     = BDsum / clamp(Dsum, 1.0, datum::inf),
     Rcpp::_["acc"]        = Rcpp::List::create(
         Rcpp::_["flip"] = n_flip > 0 ? acc_flip / n_flip : NA_REAL,
+        Rcpp::_["rev"]  = n_rev > 0 ? acc_rev / n_rev : NA_REAL,
         Rcpp::_["rw"]   = acc_rw / clamp(n_rw, 1.0, datum::inf),
         Rcpp::_["a"]    = acc_a / clamp(n_a, 1.0, datum::inf)));
 }

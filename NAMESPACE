@@ -1,6 +1,8 @@
 useDynLib(BGCLM, .registration=TRUE)
 importFrom(Rcpp, evalCpp)
 importFrom(stats, sd, acf, quantile, median, rnorm, runif)
+importFrom(grDevices, gray)
+importFrom(graphics, par, lines, polygon, text, rect, symbols)
 
 S3method(print, gclm)
 

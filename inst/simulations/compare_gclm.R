@@ -18,12 +18,22 @@ N_REP     <- 10
 N_VALS    <- c(100, 500, 2000)
 P         <- 5
 N_EDGE    <- 5
-N_ITER    <- 8000
+N_ITER    <- 20000
 BURNIN    <- 4000
 THIN      <- 4
 LAMBDAS   <- exp(seq(log(0.6), log(0.004), length.out = 30))
-SCENARIOS <- c("gershgorin", "generic", "weak", "hetero_C", "marginal")
+# two_cycle in fondo: i semi degli altri scenari (1000 * posizione) non cambiano
+SCENARIOS <- c("gershgorin", "generic", "weak", "hetero_C", "marginal", "two_cycle")
+EPS_BRIDGE <- 0.1       # augmentazione del modello A1 (sampler_checks/tune_eps.R)
+PT_BETAS   <- 0.01^(seq(0, 1, length.out = 10))   # parallel tempering (sampler_checks/pt_ladder.R)
+N_ITER_PT  <- 10000; BURNIN_PT <- 2000; THIN_PT <- 2
+RUN_SCEN   <- c("gershgorin", "weak", "two_cycle")  # scenari eseguiti; i semi seguono SCENARIOS
 OUT_RDS   <- "inst/simulations/compare_gclm_results.rds"
+.args <- commandArgs(TRUE)
+if (length(.args) && !interactive() && sys.nframe() == 0) {
+  RUN_SCEN <- .args
+  OUT_RDS <- sprintf("inst/simulations/compare_gclm_results_%s.rds", paste(.args, collapse = "_"))
+}
 
 # ========================================================================
 # Generatori
@@ -65,6 +75,18 @@ gen_generic <- function(p, n_edge, lo = 0.4, hi = 0.8, a = 0.5) {
 
 gen_weak <- function(p, n_edge) gen_gershgorin(p, n_edge, lo = 0.10, hi = 0.25)
 
+# Scenario di stress: come gershgorin, piu' l'inverso di uno dei due archi
+# casuali, quindi il vero contiene un 2-ciclo (6 archi). Viola A1.
+gen_two_cycle <- function(p, n_edge, lo = 0.4, hi = 0.8, a = 0.5) {
+  Boff <- rand_off(p, n_edge, lo, hi)
+  cyc <- matrix(FALSE, p, p); cyc[rbind(c(2, 1), c(3, 2), c(1, 3))] <- TRUE
+  extra <- which(Boff != 0 & !cyc, arr.ind = TRUE)
+  e <- extra[sample(nrow(extra), 1), ]
+  Boff[e[2], e[1]] <- sample(c(-1, 1), 1) * runif(1, lo, hi)
+  B <- build_B(Boff, rep(a, p))
+  list(B = B, C = diag(p), delta = (Boff != 0) * 1L, Sigma = lyapunov(B, diag(p)))
+}
+
 # C vera diagonale ma non identita': entrambi i metodi la fissano a I.
 gen_hetero_C <- function(p, n_edge, a = 0.5) {
   Boff <- rand_off(p, n_edge, 0.4, 0.8)
@@ -91,7 +113,7 @@ gen_marginal <- function(p, n_edge, n_lat = 3, a = 0.5) {
 }
 
 GEN <- list(gershgorin = gen_gershgorin, generic = gen_generic, weak = gen_weak,
-            hetero_C = gen_hetero_C, marginal = gen_marginal)
+            hetero_C = gen_hetero_C, marginal = gen_marginal, two_cycle = gen_two_cycle)
 
 # ========================================================================
 # Stimatori
@@ -110,13 +132,6 @@ loglik <- function(S, Sh, n) {
   if (is.null(R)) return(-Inf)
   Ri <- backsolve(R, diag(ncol(S)))
   -0.5 * n * (ncol(S) * log(2 * pi) + 2 * sum(log(diag(R))) + sum((Ri %*% t(Ri)) * Sh))
-}
-
-fit_bgclm <- function(Y) {
-  t0 <- proc.time()[3]
-  f <- gclm_mcmc(Y, n_iter = N_ITER, burnin = BURNIN, thin = THIN, verbose = FALSE)
-  f$time <- proc.time()[3] - t0
-  f
 }
 
 # free_C = FALSE riproduce l'assunzione di BGCLM (C = I fissa): lambdac = -1
@@ -164,13 +179,18 @@ fit_gclm <- function(Y, free_C = FALSE) {
 # cov95 e' separata fra archi veri e non archi: mediata su tutti gli
 # off-diagonali sarebbe dominata dagli zeri, il cui intervallo marginale e'
 # degenere in [0, 0] e contiene lo zero vero per costruzione.
+# sel: grafo selezionato (matrice 0/1); per BGCLM viene da select_graph(),
+# regola per coppia per A1 e per freccia per il modello libero. tpr_sk / fpr_sk
+# confrontano gli scheletri (archi non orientati).
 # ========================================================================
 
-metrics <- function(B_hat, Sigma_hat, score, truth, qs = NULL) {
+metrics <- function(B_hat, Sigma_hat, score, truth, qs = NULL, sel = NULL) {
   p <- ncol(truth$B); off <- which(diag(p) == 0)
   lab <- truth$delta[off]
   if (is.null(Sigma_hat)) Sigma_hat <- matrix(NA_real_, p, p)
-  sel <- if (is.null(qs)) as.integer(abs(B_hat[off]) > 1e-8) else as.integer(score > 0.5)
+  if (is.null(sel)) sel <- (abs(B_hat) > 1e-8) * 1L
+  sk <- function(d) ((d | t(d)) * 1L)[upper.tri(d)]
+  sk_lab <- sk(truth$delta); sk_sel <- sk(sel); sel <- sel[off]
   out <- data.frame(
     auc     = if (all(is.na(score))) NA_real_ else auc(score, lab),
     tpr     = if (any(lab == 1)) mean(sel[lab == 1] == 1) else NA_real_,
@@ -178,7 +198,11 @@ metrics <- function(B_hat, Sigma_hat, score, truth, qs = NULL) {
     rmse_B  = sqrt(mean((B_hat[off] - truth$B[off])^2)),
     err_Sig = norm(Sigma_hat - truth$Sigma, "F") / norm(truth$Sigma, "F"),
     cov_e   = NA_real_, cov_0 = NA_real_,
-    n_edge  = sum(sel))
+    tpr_sk  = mean(sk_sel[sk_lab == 1] == 1),
+    fpr_sk  = mean(sk_sel[sk_lab == 0] == 1),
+    n_edge  = sum(sel),
+    tpr_2ciclo = { rc <- (truth$delta == 1 & t(truth$delta) == 1)[off]
+                   if (any(rc)) mean(sel[rc] == 1) else NA_real_ })
   if (!is.null(qs)) {
     inside <- truth$B[off] >= qs[1, , ][off] & truth$B[off] <= qs[2, , ][off]
     out$cov_e <- if (any(lab == 1)) mean(inside[lab == 1]) else NA_real_
@@ -191,11 +215,11 @@ metrics <- function(B_hat, Sigma_hat, score, truth, qs = NULL) {
 # Loop principale
 # ========================================================================
 
-res <- list()
-grid <- expand.grid(rep = seq_len(N_REP), n = N_VALS, scen = SCENARIOS,
+res <- list(); pips <- list()
+grid <- expand.grid(rep = seq_len(N_REP), n = N_VALS, scen = RUN_SCEN,
                     stringsAsFactors = FALSE)
 cat(sprintf("%d configurazioni (%d scenari x %d n x %d repliche)\n\n",
-            nrow(grid), length(SCENARIOS), length(N_VALS), N_REP))
+            nrow(grid), length(RUN_SCEN), length(N_VALS), N_REP))
 
 for (g in seq_len(nrow(grid))) {
   scen <- grid$scen[g]; n <- grid$n[g]; rep_i <- grid$rep[g]
@@ -204,12 +228,23 @@ for (g in seq_len(nrow(grid))) {
   truth <- GEN[[scen]](P, N_EDGE)
   Y <- rmvn0(n, truth$Sigma)
 
-  fb <- fit_bgclm(Y)
-  qs <- apply(fb$B, c(1, 2), stats::quantile, probs = c(0.025, 0.975))
-  rows <- cbind(method = "BGCLM",
-                metrics(fb$B_mean, fb$Sigma_mean, fb$PIP[which(diag(P) == 0)],
-                        truth, qs = qs),
-                time = fb$time)
+  # modello A1 (grafi semplici, prior sulle coppie, augmentazione eps) e
+  # modello libero, entrambi con parallel tempering
+  fit_pt <- function(simple) {
+    t0 <- proc.time()[3]; set.seed(77 + rep_i)
+    f <- gclm_mcmc(Y, n_iter = N_ITER_PT, burnin = BURNIN_PT, thin = THIN_PT, simple = simple,
+                   eps_bridge = EPS_BRIDGE, pt_betas = PT_BETAS, verbose = FALSE)
+    f$time <- proc.time()[3] - t0; f }
+  fa <- fit_pt(TRUE); fb <- fit_pt(FALSE)
+  rows <- NULL
+  for (v in list(list("BGCLM (A1)", fa), list("BGCLM", fb))) {
+    f <- v[[2]]
+    qs <- apply(f$B, c(1, 2), stats::quantile, probs = c(0.025, 0.975))
+    rows <- rbind(rows, cbind(method = v[[1]],
+      metrics(f$B_mean, f$Sigma_mean, f$PIP[which(diag(P) == 0)], truth, qs = qs,
+              sel = select_graph(f)),
+      time = f$time))
+  }
 
   for (fc in c(FALSE, TRUE)) {
     fg <- fit_gclm(Y, free_C = fc)
@@ -225,6 +260,7 @@ for (g in seq_len(nrow(grid))) {
                     dom = is_dominant(truth$B),
                     offC = max(abs(truth$C[diag(P) == 0])),
                     ratC = max(diag(truth$C)) / min(diag(truth$C)), rows)
+  pips[[g]] <- list(scen = scen, n = n, rep = rep_i, delta = truth$delta, A1 = fa$PIP, free = fb$PIP)
 
   if (g %% 10 == 0 || g == nrow(grid))
     cat(sprintf("  %3d / %d\n", g, nrow(grid)))
@@ -233,12 +269,13 @@ for (g in seq_len(nrow(grid))) {
 res <- do.call(rbind, res)
 dir.create(dirname(OUT_RDS), showWarnings = FALSE, recursive = TRUE)
 saveRDS(res, OUT_RDS)
+saveRDS(pips, sub(".rds", "_pip.rds", OUT_RDS, fixed = TRUE))
 
 # ========================================================================
 # Riepilogo
 # ========================================================================
 
-num <- c("auc", "tpr", "fpr", "rmse_B", "err_Sig", "cov_e", "cov_0", "n_edge", "time")
+num <- c("auc", "tpr", "fpr", "tpr_sk", "fpr_sk", "rmse_B", "err_Sig", "cov_e", "cov_0", "n_edge", "tpr_2ciclo", "time")
 agg <- aggregate(res[num], by = res[c("scen", "n", "method")],
                  FUN = function(x) mean(x, na.rm = TRUE))
 agg <- agg[order(match(agg$scen, SCENARIOS), agg$n, agg$method), ]
