@@ -9,8 +9,8 @@ gclm_mcmc_cpp <- function(Y, n_iter, burnin, thin, a_pi, b_pi, a_tau, b_tau, a_s
     .Call(`_BGCLM_gclm_mcmc_cpp`, Y, n_iter, burnin, thin, a_pi, b_pi, a_tau, b_tau, a_shape, a_rate, C, verbose, prior_only)
 }
 
-gclm_simple_pt_cpp <- function(Y, n_iter, burnin, thin, a_rho, b_rho, a_tau, b_tau, a_shape, a_rate, C, verbose, prior_only, eps_bridge, Boff0, a0, betas, free_model) {
-    .Call(`_BGCLM_gclm_simple_pt_cpp`, Y, n_iter, burnin, thin, a_rho, b_rho, a_tau, b_tau, a_shape, a_rate, C, verbose, prior_only, eps_bridge, Boff0, a0, betas, free_model)
+gclm_simple_pt_cpp <- function(Y, n_iter, burnin, thin, a_rho, b_rho, a_tau, b_tau, a_shape, a_rate, C, verbose, prior_only, eps_bridge, Boff0, a0, betas, free_model, equal_diag = FALSE) {
+    .Call(`_BGCLM_gclm_simple_pt_cpp`, Y, n_iter, burnin, thin, a_rho, b_rho, a_tau, b_tau, a_shape, a_rate, C, verbose, prior_only, eps_bridge, Boff0, a0, betas, free_model, equal_diag)
 }
 
 gclm_simple_cpp <- function(Y, n_iter, burnin, thin, a_rho, b_rho, a_tau, b_tau, a_shape, a_rate, C, verbose, prior_only, eps_bridge, Boff0, a0) {

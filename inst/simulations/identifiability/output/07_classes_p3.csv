@@ -1,0 +1,8 @@
+"p","grafo","archi","aciclico","classe","membri_aciclici","chiusura_mosse","stesso_scheletro","esito","chiusura_moduli","moduli_spiegano","frazione_A2_fallisce_in_B","membri"
+3,"vuoto",0,TRUE,1,1,1,TRUE,"identificabile",1,TRUE,NA,""
+3,"1->2",1,TRUE,2,2,2,TRUE,"spiegata",2,TRUE,0.233333333333333,"1->2 | 2->1"
+3,"1->2 1->3",2,TRUE,1,1,1,TRUE,"identificabile",1,TRUE,NA,""
+3,"1->3 2->1",2,TRUE,1,1,1,TRUE,"identificabile",1,TRUE,NA,""
+3,"2->1 3->1",2,TRUE,1,1,1,TRUE,"identificabile",1,TRUE,NA,""
+3,"1->2 1->3 2->3",3,TRUE,8,6,8,TRUE,"spiegata",8,TRUE,0.666666666666667,"1->2 1->3 2->3 | 1->3 2->1 2->3 | 1->2 2->3 3->1 | 2->1 2->3 3->1 | 1->2 1->3 3->2 | 1->3 2->1 3->2 | 1->2 3->1 3->2 | 2->1 3->1 3->2"
+3,"1->2 2->3 3->1",3,FALSE,8,6,8,TRUE,"spiegata",8,TRUE,0.966666666666667,"1->2 1->3 2->3 | 1->3 2->1 2->3 | 1->2 2->3 3->1 | 2->1 2->3 3->1 | 1->2 1->3 3->2 | 1->3 2->1 3->2 | 1->2 3->1 3->2 | 2->1 3->1 3->2"

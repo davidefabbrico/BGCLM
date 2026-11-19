@@ -1,3 +1,5 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^inst/simulations/results$
+^_archivio$
+^README\.md$

@@ -47,8 +47,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // gclm_simple_pt_cpp
-Rcpp::List gclm_simple_pt_cpp(const arma::mat& Y, const int n_iter, const int burnin, const int thin, const double a_rho, const double b_rho, const double a_tau, const double b_tau, const double a_shape, const double a_rate, const arma::mat& C, const bool verbose, const bool prior_only, const double eps_bridge, const arma::mat& Boff0, const arma::vec& a0, const arma::vec& betas, const bool free_model);
-RcppExport SEXP _BGCLM_gclm_simple_pt_cpp(SEXP YSEXP, SEXP n_iterSEXP, SEXP burninSEXP, SEXP thinSEXP, SEXP a_rhoSEXP, SEXP b_rhoSEXP, SEXP a_tauSEXP, SEXP b_tauSEXP, SEXP a_shapeSEXP, SEXP a_rateSEXP, SEXP CSEXP, SEXP verboseSEXP, SEXP prior_onlySEXP, SEXP eps_bridgeSEXP, SEXP Boff0SEXP, SEXP a0SEXP, SEXP betasSEXP, SEXP free_modelSEXP) {
+Rcpp::List gclm_simple_pt_cpp(const arma::mat& Y, const int n_iter, const int burnin, const int thin, const double a_rho, const double b_rho, const double a_tau, const double b_tau, const double a_shape, const double a_rate, const arma::mat& C, const bool verbose, const bool prior_only, const double eps_bridge, const arma::mat& Boff0, const arma::vec& a0, const arma::vec& betas, const bool free_model, const bool equal_diag);
+RcppExport SEXP _BGCLM_gclm_simple_pt_cpp(SEXP YSEXP, SEXP n_iterSEXP, SEXP burninSEXP, SEXP thinSEXP, SEXP a_rhoSEXP, SEXP b_rhoSEXP, SEXP a_tauSEXP, SEXP b_tauSEXP, SEXP a_shapeSEXP, SEXP a_rateSEXP, SEXP CSEXP, SEXP verboseSEXP, SEXP prior_onlySEXP, SEXP eps_bridgeSEXP, SEXP Boff0SEXP, SEXP a0SEXP, SEXP betasSEXP, SEXP free_modelSEXP, SEXP equal_diagSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -70,7 +70,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type a0(a0SEXP);
     Rcpp::traits::input_parameter< const arma::vec& >::type betas(betasSEXP);
     Rcpp::traits::input_parameter< const bool >::type free_model(free_modelSEXP);
-    rcpp_result_gen = Rcpp::wrap(gclm_simple_pt_cpp(Y, n_iter, burnin, thin, a_rho, b_rho, a_tau, b_tau, a_shape, a_rate, C, verbose, prior_only, eps_bridge, Boff0, a0, betas, free_model));
+    Rcpp::traits::input_parameter< const bool >::type equal_diag(equal_diagSEXP);
+    rcpp_result_gen = Rcpp::wrap(gclm_simple_pt_cpp(Y, n_iter, burnin, thin, a_rho, b_rho, a_tau, b_tau, a_shape, a_rate, C, verbose, prior_only, eps_bridge, Boff0, a0, betas, free_model, equal_diag));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -104,7 +105,7 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_BGCLM_lyapunov_cpp", (DL_FUNC) &_BGCLM_lyapunov_cpp, 2},
     {"_BGCLM_gclm_mcmc_cpp", (DL_FUNC) &_BGCLM_gclm_mcmc_cpp, 13},
-    {"_BGCLM_gclm_simple_pt_cpp", (DL_FUNC) &_BGCLM_gclm_simple_pt_cpp, 18},
+    {"_BGCLM_gclm_simple_pt_cpp", (DL_FUNC) &_BGCLM_gclm_simple_pt_cpp, 19},
     {"_BGCLM_gclm_simple_cpp", (DL_FUNC) &_BGCLM_gclm_simple_cpp, 16},
     {NULL, NULL, 0}
 };

@@ -19,6 +19,12 @@
 // eps e' ignorato). Nascita pi/(1-pi), morte il reciproco, inversione con
 // rapporto di prior 1, pi | . ~ Beta(a + E, b + p(p-1) - E).
 //
+// Con equal_diag = true la diagonale e' uguale per tutti i nodi, B_ii = -d, con
+// d ~ Gamma(a_shape, rate a_rate) troncata alla regione d > max_i sum_j |B_ij|
+// (stabilita' per Gershgorin). I margini a_i = d - sum_j |B_ij| non hanno piu'
+// una prior propria: le mosse sugli archi tengono d fisso e accettano solo se
+// tutti i margini restano positivi, e al posto dei p margini si aggiorna d.
+//
 // Gli stati (parametri del modello) passano da un livello all'altro con gli
 // scambi; le scale adattive del random walk restano legate al livello, perche'
 // la scala giusta dipende dalla temperatura.
@@ -68,7 +74,8 @@ Rcpp::List gclm_simple_pt_cpp(const arma::mat& Y,
                               const arma::mat& C, const bool verbose,
                               const bool prior_only, const double eps_bridge,
                               const arma::mat& Boff0, const arma::vec& a0,
-                              const arma::vec& betas, const bool free_model) {
+                              const arma::vec& betas, const bool free_model,
+                              const bool equal_diag = false) {
 
   const uword n = Y.n_rows, p = Y.n_cols, KT = betas.n_elem;
   const double nd = (double) n, pd = (double) p;
@@ -98,6 +105,7 @@ Rcpp::List gclm_simple_pt_cpp(const arma::mat& Y,
     s.delta = conv_to<umat>::from(s.Boff != 0.0);
     s.rsum = sum(abs(s.Boff), 1); s.avec = a0; s.dvec = s.rsum + s.avec;
     if (any(s.avec <= 0.0)) Rcpp::stop("i margini iniziali devono essere positivi");
+    if (equal_diag && max(s.dvec) - min(s.dvec) > 1e-10) Rcpp::stop("con equal_diag la diagonale iniziale deve essere costante");
     s.Bcur = s.Boff; s.Bcur.diag() = -s.dvec;
     if (!lyap_solve_t(s.Bcur, C, s.Sigcur)) Rcpp::stop("Lyapunov non risolvibile nello stato iniziale");
     s.llcur = loglik(s.Sigcur); s.tau = 0.25; s.rho = 0.5;
@@ -141,7 +149,8 @@ Rcpp::List gclm_simple_pt_cpp(const arma::mat& Y,
             if (a_co > 0.0) {
               s.Boff(ro, co) = 0.0; s.Bcur(ro, co) = 0.0; s.Boff(co, ro) = b; s.Bcur(co, ro) = b;
               const double ll2 = lyap_solve_t(s.Bcur, C, Stry) ? loglik(Stry) : -datum::inf;
-              const double lr2 = R::dgamma(a_ro, a_shape, a_scale, 1) - R::dgamma(s.avec(ro), a_shape, a_scale, 1)
+              const double lr2 = equal_diag ? 0.0 :
+                                 R::dgamma(a_ro, a_shape, a_scale, 1) - R::dgamma(s.avec(ro), a_shape, a_scale, 1)
                                + R::dgamma(a_co, a_shape, a_scale, 1) - R::dgamma(s.avec(co), a_shape, a_scale, 1);
               if (std::log(R::unif_rand()) < beta * (ll2 - s.llcur) + lr2) {
                 s.delta(ro, co) = 0; s.delta(co, ro) = 1;
@@ -180,7 +189,7 @@ Rcpp::List gclm_simple_pt_cpp(const arma::mat& Y,
             const double bold = s.Boff(i, j);
             s.Boff(i, j) = bnew; s.Bcur(i, j) = bnew;
             const double lltry = lyap_solve_t(s.Bcur, C, Stry) ? loglik(Stry) : -datum::inf;
-            logr += R::dgamma(anew, a_shape, a_scale, 1) - R::dgamma(s.avec(i), a_shape, a_scale, 1);
+            if (!equal_diag) logr += R::dgamma(anew, a_shape, a_scale, 1) - R::dgamma(s.avec(i), a_shape, a_scale, 1);
             if (std::log(R::unif_rand()) < beta * (lltry - s.llcur) + logr) {
               s.delta(i, j) = 1 - s.delta(i, j);
               s.rsum(i) = rnew; s.avec(i) = anew;
@@ -200,7 +209,7 @@ Rcpp::List gclm_simple_pt_cpp(const arma::mat& Y,
             s.Boff(i, j) = bnew; s.Bcur(i, j) = bnew;
             const double lltry = lyap_solve_t(s.Bcur, C, Stry) ? loglik(Stry) : -datum::inf;
             const double lr = R::dnorm4(bnew, 0.0, std::sqrt(s.tau), 1) - R::dnorm4(bold, 0.0, std::sqrt(s.tau), 1)
-                            + R::dgamma(anew, a_shape, a_scale, 1) - R::dgamma(s.avec(i), a_shape, a_scale, 1);
+                            + (equal_diag ? 0.0 : R::dgamma(anew, a_shape, a_scale, 1) - R::dgamma(s.avec(i), a_shape, a_scale, 1));
             if (std::log(R::unif_rand()) < beta * (lltry - s.llcur) + lr) {
               s.rsum(i) = rnew; s.avec(i) = anew;
               s.Sigcur = Stry; s.llcur = lltry; T.acc_rw(i, j) += 1.0;
@@ -209,8 +218,22 @@ Rcpp::List gclm_simple_pt_cpp(const arma::mat& Y,
         }
       }
 
-      // margini a_i
-      for (uword i = 0; i < p; ++i) {
+      // diagonale comune d (equal_diag) oppure margini a_i
+      if (equal_diag) {
+        const double dold = s.dvec(0);
+        const double dnew = dold * std::exp(R::rnorm(0.0, T.s_a(0)));
+        T.n_a(0) += 1.0;
+        if (dnew > max(s.rsum)) {
+          s.Bcur.diag().fill(-dnew);
+          const double lltry = lyap_solve_t(s.Bcur, C, Stry) ? loglik(Stry) : -datum::inf;
+          const double lr = R::dgamma(dnew, a_shape, a_scale, 1) - R::dgamma(dold, a_shape, a_scale, 1)
+                          + std::log(dnew) - std::log(dold);
+          if (std::log(R::unif_rand()) < beta * (lltry - s.llcur) + lr) {
+            s.dvec.fill(dnew); s.avec = s.dvec - s.rsum;
+            s.Sigcur = Stry; s.llcur = lltry; T.acc_a(0) += 1.0;
+          } else s.Bcur.diag().fill(-dold);
+        }
+      } else for (uword i = 0; i < p; ++i) {
         const double aold = s.avec(i), dold = s.dvec(i);
         const double anew = aold * std::exp(R::rnorm(0.0, T.s_a(i)));
         s.Bcur(i, i) = -(s.rsum(i) + anew);

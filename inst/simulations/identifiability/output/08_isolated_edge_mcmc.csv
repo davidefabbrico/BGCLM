@@ -1,0 +1,13 @@
+"caso","n","seme","P_coppia","P_verso_vero"
+"rovescio_in_B",200,1,0.998060762766645,0.680051813471502
+"rovescio_in_B",200,2,0.423329682365827,0.429495472186287
+"rovescio_in_B",2000,1,1,0.571796522858983
+"rovescio_in_B",2000,2,1,0.590852130325815
+"rovescio_in_B",20000,1,1,0.593125
+"rovescio_in_B",20000,2,1,0.54677623261694
+"rovescio_fuori_da_B",200,1,1,1
+"rovescio_fuori_da_B",200,2,1,1
+"rovescio_fuori_da_B",2000,1,1,1
+"rovescio_fuori_da_B",2000,2,1,1
+"rovescio_fuori_da_B",20000,1,1,1
+"rovescio_fuori_da_B",20000,2,1,1

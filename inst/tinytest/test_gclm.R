@@ -149,3 +149,14 @@ expect_equal(sg[2, 1], 1L)
 expect_equal(sum(select_graph(fk, rule = "arrow")), 0L)
 fk$simple <- FALSE
 expect_equal(select_graph(fk), select_graph(fk, rule = "arrow"))
+
+# ---- diagonale uguale (equal_diag) -------------------------------------
+set.seed(11)
+Ye <- matrix(rnorm(200), 50, 4)
+fe <- suppressWarnings(gclm_mcmc(Ye, n_iter = 3000, burnin = 500, thin = 5, simple = TRUE,
+                                 eps_bridge = 0.1, equal_diag = TRUE, verbose = FALSE))
+expect_true(all(apply(fe$B, 3, function(B) diff(range(diag(B))) < 1e-12)))
+expect_true(all(apply(fe$B, 3, function(B) all(-diag(B) > rowSums(abs(B)) - abs(diag(B))))))
+expect_equal(length(fe$d), dim(fe$B)[3])
+expect_true(all(fe$d > 0))
+expect_error(gclm_mcmc(Ye, n_iter = 100, burnin = 50, equal_diag = TRUE, verbose = FALSE))   # serve simple = TRUE

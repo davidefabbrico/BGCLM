@@ -49,6 +49,11 @@
 #' @param pt_betas NULL (catena singola) oppure il vettore decrescente delle
 #'   temperature inverse del parallel tempering, con primo elemento 1; si
 #'   salvano i draw della catena con beta = 1
+#' @param equal_diag se TRUE la diagonale e' uguale per tutti i nodi, B_ii = -d,
+#'   con d ~ Gamma(a_shape, a_rate) troncata a d > max_i sum_j |B_ij|: sotto A1
+#'   grafo e B sono genericamente identificabili senza l'assunzione di sparsita'.
+#'   Solo `simple = TRUE`, sempre con il campionatore a tempering (senza
+#'   `pt_betas` usa una sola catena)
 #' @param B_init deriva iniziale p x p nella classe Gershgorin (solo `simple =
 #'   TRUE`); NULL parte dal grafo vuoto con margini 1
 #' @param prior_only se TRUE la verosimiglianza e' piatta e la catena campiona
@@ -63,7 +68,7 @@ gclm_mcmc <- function(Y,
                       a_tau = 2, b_tau = 0.5,
                       a_shape = 2, a_rate = 2,
                       C = NULL, simple = FALSE, eps_bridge = 0.05, B_init = NULL, pt_betas = NULL,
-                      prior_only = FALSE, verbose = TRUE) {
+                      equal_diag = FALSE, prior_only = FALSE, verbose = TRUE) {
 
   Y <- as.matrix(Y)
   storage.mode(Y) <- "double"
@@ -90,6 +95,13 @@ gclm_mcmc <- function(Y,
     a0 <- -diag(B_init) - rowSums(abs(Boff0))
     if (any(a0 <= 0)) stop("B_init deve avere diagonale di Gershgorin (a_i > 0)")
   }
+  if (equal_diag) {
+    if (!simple) stop("equal_diag richiede simple = TRUE")
+    if (is.null(pt_betas)) pt_betas <- 1
+    rs <- rowSums(abs(Boff0))
+    if (is.null(B_init)) a0 <- max(rs) + 1 - rs
+    else if (diff(range(diag(B_init))) > 1e-10) stop("con equal_diag B_init deve avere diagonale costante")
+  }
 
   if (!is.null(pt_betas))
     stopifnot(abs(pt_betas[1] - 1) < 1e-12, all(diff(pt_betas) < 0), all(pt_betas > 0))
@@ -97,7 +109,7 @@ gclm_mcmc <- function(Y,
     out <- gclm_simple_pt_cpp(Y, as.integer(n_iter), as.integer(burnin), as.integer(thin),
              if (simple) a_rho else a_pi, if (simple) b_rho else b_pi,
              a_tau, b_tau, a_shape, a_rate, C, verbose, prior_only,
-             eps_bridge, Boff0, a0, as.numeric(pt_betas), !simple)
+             eps_bridge, Boff0, a0, as.numeric(pt_betas), !simple, equal_diag)
     if (!simple) { out$pi <- out$rho; out$rho <- NULL }
     out$C <- C
     if (!simple) out <- .summarise_draws(out, rep(TRUE, length(out$loglik)))
@@ -119,6 +131,8 @@ gclm_mcmc <- function(Y,
     fit$eps_bridge <- eps_bridge
     fit <- .subset_simple(fit, "prior sulle coppie", min_draws = 100)
   }
+  fit$equal_diag <- equal_diag
+  if (equal_diag) fit$d <- -fit$B[1, 1, ]
   fit
 }
 

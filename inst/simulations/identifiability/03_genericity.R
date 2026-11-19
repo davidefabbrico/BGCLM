@@ -7,7 +7,7 @@
 # Uso: Rscript inst/simulations/identifiability/03_genericity.R
 source("inst/simulations/identifiability/common_ident.R")
 NDRAW <- 20
-RANGE <- list(gershgorin = c(0.4, 0.8), weak = c(0.10, 0.25))
+RANGE <- list(gershgorin = c(0.4, 0.8), weak = c(0.10, 0.25), random = c(0.4, 0.8))
 sup <- simple_supports(5 + 2)
 res <- list(); sets_ok <- list()
 for (scen in names(SEEDS)) for (r in 1:10) {

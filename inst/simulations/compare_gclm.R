@@ -23,13 +23,15 @@ BURNIN    <- 4000
 THIN      <- 4
 LAMBDAS   <- exp(seq(log(0.6), log(0.004), length.out = 30))
 # two_cycle in fondo: i semi degli altri scenari (1000 * posizione) non cambiano
-SCENARIOS <- c("gershgorin", "generic", "weak", "hetero_C", "marginal", "two_cycle")
+SCENARIOS <- c("gershgorin", "generic", "weak", "hetero_C", "marginal", "two_cycle", "random")
 EPS_BRIDGE <- 0.1       # augmentazione del modello A1 (sampler_checks/tune_eps.R)
 PT_BETAS   <- 0.01^(seq(0, 1, length.out = 10))   # parallel tempering (sampler_checks/pt_ladder.R)
 N_ITER_PT  <- 10000; BURNIN_PT <- 2000; THIN_PT <- 2
 RUN_SCEN   <- c("gershgorin", "weak", "two_cycle")  # scenari eseguiti; i semi seguono SCENARIOS
 OUT_RDS   <- "inst/simulations/compare_gclm_results.rds"
 .args <- commandArgs(TRUE)
+# --senza-libero: non stima il modello senza A1 (i semi degli altri metodi non cambiano)
+FIT_FREE <- !("--senza-libero" %in% .args); .args <- setdiff(.args, "--senza-libero")
 if (length(.args) && !interactive() && sys.nframe() == 0) {
   RUN_SCEN <- .args
   OUT_RDS <- sprintf("inst/simulations/compare_gclm_results_%s.rds", paste(.args, collapse = "_"))
@@ -87,6 +89,18 @@ gen_two_cycle <- function(p, n_edge, lo = 0.4, hi = 0.8, a = 0.5) {
   list(B = B, C = diag(p), delta = (Boff != 0) * 1L, Sigma = lyapunov(B, diag(p)))
 }
 
+# Struttura casuale: come gershgorin, ma i 5 archi stanno su 5 coppie estratte a
+# caso, con verso casuale, senza il 3-ciclo fisso. Il grafo e' semplice.
+gen_random <- function(p, n_edge, lo = 0.4, hi = 0.8, a = 0.5) {
+  pr <- which(upper.tri(diag(p)), arr.ind = TRUE)[sample(p * (p - 1) / 2, n_edge), , drop = FALSE]
+  flip <- runif(n_edge) < 0.5
+  pr[flip, ] <- pr[flip, 2:1]
+  Boff <- matrix(0, p, p)
+  Boff[pr] <- sample(c(-1, 1), n_edge, replace = TRUE) * runif(n_edge, lo, hi)
+  B <- build_B(Boff, rep(a, p))
+  list(B = B, C = diag(p), delta = (Boff != 0) * 1L, Sigma = lyapunov(B, diag(p)))
+}
+
 # C vera diagonale ma non identita': entrambi i metodi la fissano a I.
 gen_hetero_C <- function(p, n_edge, a = 0.5) {
   Boff <- rand_off(p, n_edge, 0.4, 0.8)
@@ -113,7 +127,8 @@ gen_marginal <- function(p, n_edge, n_lat = 3, a = 0.5) {
 }
 
 GEN <- list(gershgorin = gen_gershgorin, generic = gen_generic, weak = gen_weak,
-            hetero_C = gen_hetero_C, marginal = gen_marginal, two_cycle = gen_two_cycle)
+            hetero_C = gen_hetero_C, marginal = gen_marginal, two_cycle = gen_two_cycle,
+            random = gen_random)
 
 # ========================================================================
 # Stimatori
@@ -235,9 +250,9 @@ for (g in seq_len(nrow(grid))) {
     f <- gclm_mcmc(Y, n_iter = N_ITER_PT, burnin = BURNIN_PT, thin = THIN_PT, simple = simple,
                    eps_bridge = EPS_BRIDGE, pt_betas = PT_BETAS, verbose = FALSE)
     f$time <- proc.time()[3] - t0; f }
-  fa <- fit_pt(TRUE); fb <- fit_pt(FALSE)
+  fa <- fit_pt(TRUE); fb <- if (FIT_FREE) fit_pt(FALSE)
   rows <- NULL
-  for (v in list(list("BGCLM (A1)", fa), list("BGCLM", fb))) {
+  for (v in Filter(function(v) !is.null(v[[2]]), list(list("BGCLM (A1)", fa), list("BGCLM", fb)))) {
     f <- v[[2]]
     qs <- apply(f$B, c(1, 2), stats::quantile, probs = c(0.025, 0.975))
     rows <- rbind(rows, cbind(method = v[[1]],

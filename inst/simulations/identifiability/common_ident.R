@@ -13,7 +13,7 @@ eval(parse(text = paste(src[1:(grep("^GEN <- list", src) - 1)], collapse = "\n")
 p <- P
 OFF <- which(diag(p) == 0)
 PAIRS <- which(upper.tri(diag(p)), arr.ind = TRUE)          # coppie non ordinate (r < c)
-SEEDS <- c(gershgorin = 1000, weak = 3000)                   # seme = SEEDS[scen] + 10 * rep
+SEEDS <- c(gershgorin = 1000, weak = 3000, random = 7000)                 # seme = SEEDS[scen] + 10 * rep
 
 true_model <- function(scen, rep) {
   set.seed(SEEDS[[scen]] + 10 * rep)
